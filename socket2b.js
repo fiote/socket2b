@@ -20,7 +20,7 @@ class Socket2b {
 		this.ws.addEventListener('message',ev => {
 			const { channel, cbid, data } = this.parseEvent(ev);
 			if (channel == 'callback') return this.parseCallback(cbid, data);
-			this.trigger(channel, data);
+			this.trigger(channel, data, cbid);
 		});
 	}
 
@@ -50,9 +50,13 @@ class Socket2b {
 		if (callback) callback(data);
 	}
 
-	trigger(channel, data) {
-		this.listeners.forEach(list => {
-			if (list.channel === channel) list.callback(data);
+	trigger(channel, data, cbid) {
+		this.listeners.forEach(entry => {
+			if (entry.channel === channel) {
+				entry.callback(data,payback => {
+					if (cbid !== undefined) this.emitback(cbid, payback);
+				});
+			}
 		});
 	}
 
@@ -62,6 +66,11 @@ class Socket2b {
 			message.cbid = this.cbid++;
 			 this.callbacks[message.cbid] = callback;
 		}
+		this.ws.send(JSON.stringify(message));
+	}
+
+	emitback(cbid, data) {
+		const message = {channel: 'callback', cbid, data};
 		this.ws.send(JSON.stringify(message));
 	}
 
